@@ -3,10 +3,6 @@ from deeco.core import Runnable, Runtime
 import types
 from queue import PriorityQueue
 
-class Timer:
-	pass
-
-
 class Scheduler:
 	def run(self):
 		pass

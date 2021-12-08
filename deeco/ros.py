@@ -1,28 +1,30 @@
 from deeco.core import Component
 import rclpy
-from std_msgs.msg import String, Int64
+from rosgraph_msgs.msg import Clock
 from deeco.sim import Sim, SimScheduler
 from time import sleep
 
 
 class ROSComponent(Component):
-    def __init__(self, node, topic):
+    def __init__(self, node, ros_type, topic, callback=None):
         super().__init__(node)
         self.topic = topic
         self.ros_node = rclpy.create_node(f"ensemble_{topic}")
-        self.ros_sub = self.ros_node.create_subscription(String, topic, self.callback, 10)
+        if callback is None:
+            callback = self.callback
+        self.ros_sub = self.ros_node.create_subscription(ros_type, topic, callback, 10)
 
     def callback(self, msg):
         self.knowledge.data = msg.data
-        print(msg.data)
 
 
 class ROSScheduler(SimScheduler):
     def __init__(self):
         super().__init__()
         self.ros_node = rclpy.create_node(f"ros_scheduler")
-        self.ros_sub = self.ros_node.create_subscription(Int64, '/clock', self.run, 10)
+        self.ros_sub = self.ros_node.create_subscription(Clock, '/clock', self.run, 10)
         self.limit_ms = 0
+        self.current_event = None
 
     def set_limit(self, limit_ms):
         self.limit_ms = limit_ms
@@ -34,9 +36,11 @@ class ROSScheduler(SimScheduler):
         self.time_ms = int(clock.data / 1e3)
         if self.check_if_done(clock.data):
             rclpy.shutdown()
-        else:
-            event: Timer = self.events.get()
+        elif self.current_event is None:
+            self.current_event = self.events.get()
+        if self.current_event.time_ms <= self.time_ms:
             event.run(self.time_ms)
+            self.current_event = None
 
 
 class ROSSim(Sim):
