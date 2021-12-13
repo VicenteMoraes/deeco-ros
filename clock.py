@@ -12,7 +12,7 @@ def publish_clock():
     msg = Int64()
     msg.data = i
     pub.publish(msg)
-    i += 1
+    i += 1000
 
 
 timer = node.create_timer(1, publish_clock)
