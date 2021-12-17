@@ -11,6 +11,7 @@ class ROSComponent(Component):
     def __init__(self, node):
         super().__init__(node)
         self.node.runtime.add_ros_component(self)
+        self.ros_attributes = {}
         self.ros_node = rclpy.create_node(f"ensemble_{topic}")
 
 
