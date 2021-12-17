@@ -1,0 +1,2 @@
+jsonpickle==2.0.0
+shortuuid==1.0.8
