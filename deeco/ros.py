@@ -8,17 +8,10 @@ import threading
 
 
 class ROSComponent(Component):
-    def __init__(self, node, ros_type, topic, callback=None):
+    def __init__(self, node):
         super().__init__(node)
-        self.node.runtime.add_ros_node(self)
-        self.topic = topic
+        self.node.runtime.add_ros_component(self)
         self.ros_node = rclpy.create_node(f"ensemble_{topic}")
-        if callback is None:
-            callback = self.callback
-        self.ros_sub = self.ros_node.create_subscription(ros_type, topic, callback, 10)
-
-    def callback(self, msg):
-        self.knowledge.data = msg.data
 
 
 class ROSScheduler(SimScheduler):
@@ -54,12 +47,12 @@ class ROSSim(Sim):
     def __init__(self):
         super().__init__()
         self.scheduler = ROSScheduler()
-        self.ros_nodes = []
+        self.ros_components = []
         self.executor = rclpy.executors.MultiThreadedExecutor()
         self.executor_thread = threading.Thread(target=self.executor.spin, daemon=True)
 
-    def add_ros_node(self, ros_node):
-        self.ros_nodes.append(ros_node)
+    def add_ros_component(self, ros_component):
+        self.ros_components.append(ros_component)
 
     def start_ros_executor(self):
         self.executor.add_node(self.scheduler.ros_node)
