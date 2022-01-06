@@ -2,17 +2,20 @@ from deeco.ros import ROSComponent, ROSSim
 from deeco.core import Node
 from deeco.plugins.simplenetwork import SimpleNetwork
 from deeco.plugins.knowledgepublisher import KnowledgePublisher
-from std_msgs.msg import String
+from deeco.plugins.attributes import ROSString
 import rclpy
-import threading
+from clock import fake_clock
 
 
 rclpy.init()
 sim = ROSSim()
 node = Node(sim)
-robot = ROSComponent(node, String, 'help')
+robot = ROSComponent(node, 'robot')
+str_attribute = ROSString(node, robot, 'topicname')
+robot.add_attribute(str_attribute)
 node.add_component(robot)
 SimpleNetwork(sim, delay_ms_mu=20, delay_ms_sigma=5)
 KnowledgePublisher(node)
 
-sim.run(15)
+fake_clock()
+sim.run(15e3)

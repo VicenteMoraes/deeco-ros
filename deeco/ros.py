@@ -3,16 +3,19 @@ import rclpy
 from rosgraph_msgs.msg import Clock
 from std_msgs.msg import Int64
 from deeco.sim import Sim, SimScheduler
-from time import sleep
 import threading
 
 
 class ROSComponent(Component):
-    def __init__(self, node):
+    def __init__(self, node, name):
         super().__init__(node)
         self.node.runtime.add_ros_component(self)
         self.ros_attributes = {}
-        self.ros_node = rclpy.create_node(f"ensemble_{topic}")
+        self.ros_node = rclpy.create_node(f"ensemble_{name}")
+
+    def add_attribute(self, attribute):
+        key = attribute.topic
+        self.ros_attributes[key] = attribute
 
 
 class ROSScheduler(SimScheduler):
@@ -28,7 +31,7 @@ class ROSScheduler(SimScheduler):
         self.limit_ms = limit_ms
 
     def check_if_done(self, time_ms):
-        return time_ms > self.limit_ms
+        return time_ms >= self.limit_ms
 
     def run(self, clock):
         self.time_ms = int(clock.data / 1e3)
@@ -57,7 +60,7 @@ class ROSSim(Sim):
 
     def start_ros_executor(self):
         self.executor.add_node(self.scheduler.ros_node)
-        for node in self.ros_nodes:
+        for node in self.ros_components:
             self.executor.add_node(node.ros_node)
         self.executor_thread.start()
 
@@ -66,7 +69,7 @@ class ROSSim(Sim):
         for plugin in self.plugins:
             plugin.run(self.scheduler)
 
-	# Schedule nodes
+        # Schedule nodes
         for node in self.nodes:
             node.run(self.scheduler)
 

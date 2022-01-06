@@ -12,7 +12,6 @@ class ROSAttribute(Attribute):
     def __init__(self, node, ros_component, ros_type, topic, callback=None):
         super().__init__(node)
         self.ros_component = ros_component
-        self.ros_component.ros_attributes[topic] = self
         self.topic = topic
         if callback is None:
             callback = self.callback
