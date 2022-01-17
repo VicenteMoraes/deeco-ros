@@ -25,12 +25,16 @@ class ROSWalker:
         self.timer = self.ros_node.create_timer(frequency, self.move)
         self.target = None
 
+    def update_target(self):
+        self.target = self.ros_component.knowledge.goal
+
     def move(self):
         step = self.speed_ms / (1000 / self.DEFAULT_STEP_MS)
         if self.pose is None or self.target is None:
             return
 
         if euclidean_distance(self.pose, self.target) <= step:
+            print('hi')
             self.pose = self.target
         else:
             vector = Pose()
@@ -43,6 +47,7 @@ class ROSWalker:
             self.pose.position.y += vector.position.y
 
     def pose_pub(self):
+        self.update_target()
         self.move()
         self.ros_pub.publish(self.pose)
 

@@ -94,7 +94,7 @@ class Follower(ROSComponent):
             self.position = Pose()
 
     # Component initialization
-    def __init__(self, node: Node, pose_topic, leader_topic):
+    def __init__(self, node: Node, pose_topic):
         super().__init__(node)
 
         pose_attribute = ROSPose(node, self, pose_topic)
@@ -103,9 +103,6 @@ class Follower(ROSComponent):
         # Initialize knowledge
         self.knowledge = Follower.Knowledge()
         self.knowledge.goal = None
-
-        # Set goal
-        self.ros_sub = self.ros_node.create_subscription(Pose, leader_topic, self.set_goal, 10)
 
     @process(period_ms=10)
     def update_time(self, node: Node):
@@ -157,7 +154,7 @@ def test_join_ensemble_and_update_knowledge():
     leader_pose = Pose()
     leader_pose.position.x = 0.5
     leader_pose.position.y = 0.5
-    leader_walker = ROSWalker(leader, leader_pose, 'leader', speed_ms=0.001/3.6)
+    leader_walker = ROSWalker(leader, leader_pose, 'leader', speed_ms=0.05/3.6)
     node0.add_component(leader)
 
     node1 = Node(sim)
@@ -172,11 +169,10 @@ def test_join_ensemble_and_update_knowledge():
 
     fake_clock()
     start_walkers([leader_walker, follower_walker])
-    sim.run(10000)
+    sim.run(30e3)
     #assert has_member(er0, robot1)
     print(er0.membership)
 
-    # check if er2 has an updated knowledge about robo
     dist = dist_to(leader, follower)
     # assert that ensemble knowledge is at most one walker step behind
     print(dist)
