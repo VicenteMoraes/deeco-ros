@@ -1,18 +1,29 @@
 from deeco.ros import ROSComponent, ROSSim
 from deeco.plugins.ensemblereactor import EnsembleMember, EnsembleReactor, has_member
-from deeco.core import EnsembleDefinition, process
-from deeco.core import Node, BaseKnowledge, ComponentRole
-from deeco.plugins.simplenetwork import SimpleNetwork
+from deeco.core import (
+    EnsembleDefinition,
+    process,
+    Node,
+    BaseKnowledge,
+    ComponentRole
+)
+from deeco.plugins.simplenetwork import SimpleNetwork, SimpleRangeLimitedNetwork
 from deeco.plugins.knowledgepublisher import KnowledgePublisher
 from deeco.mapping import SetValue
 from geometry_msgs.msg import Pose
-from deeco.plugins.simplenetwork import SimpleRangeLimitedNetwork
-from deeco.plugins.walker import Walker
-from deeco.plugins.snapshoter import Snapshoter
-from deeco.position import Position
+from deeco.plugins.attributes import ROSPose
+from walker_pub import ROSWalker, start_walkers
 import rclpy
 from random import Random
+from clock import fake_clock
 
+
+def euclidean_distance(nodeA, nodeB):
+    return ((nodeA.x - nodeB.x) ** 2 + (nodeA.y - nodeB.y) ** 2) ** 0.5
+
+
+def dist_to(componentA, componentB):
+    return euclidean_distance(componentA.knowledge.position.position, componentB.knowledge.position.position)
 
 class Group(ComponentRole):
     def __init__(self):
@@ -36,76 +47,73 @@ class Leader(ROSComponent):
     
     @staticmethod
     def gen_random_position():
-        return Position(Leader.random.uniform(0, 1), Leader.random.uniform(0, 1))
+        pose = Pose()
+        pose.position.x = Leader.random.uniform(0, 1)
+        pose.position.y = Leader.random.uniform(0, 1)
+        return pose
 
     # Knowledge definition
     class Knowledge(LeaderRole, Rover, BaseKnowledge):
         def __init__(self):
             super().__init__()
+            self.position = Pose()
 
     # Component initialization
-    def __init__(self, node: Node, topic):
-        callback = self.PoseCallback
-        super().__init__(node, Pose, topic, callback)
+    def __init__(self, node: Node, pose_topic="pose"):
+        super().__init__(node)
+
+        pose_attribute = ROSPose(node, self, pose_topic)
+        super().add_attribute(pose_attribute)
 
         # Initialize knowledge
-        self.knowledge.position = node.positionProvider.get()
+        self.knowledge = Leader.Knowledge()
         self.knowledge.goal = self.gen_random_position()
-
-    def PoseCallback(self, msg):
-        self.knowledge.position.x = msg.position.x
-        self.knowledge.position.y = msg.position.y
 
     @process(period_ms=10)
     def update_time(self, node: Node):
         self.knowledge.time = node.runtime.scheduler.get_time_ms()
 
-    @process(period_ms=100)
-    def sense_position(self, node: Node):
-        self.knowledge.position = node.positionProvider.get()
-
     @process(period_ms=1000)
     def set_goal(self, node: Node):
-        if self.knowledge.position == self.knowledge.goal:
+        if self.knowledge.position.position.x == self.knowledge.goal.position.x \
+                and self.knowledge.position.position.y == self.knowledge.goal.position.y:
             self.knowledge.goal = self.gen_random_position()
-            node.walker.set_target(self.knowledge.goal)
-        node.walker.set_target(self.knowledge.goal)
 
 
 class FollowerRole(ComponentRole):
     pass
 
+
 class Follower(ROSComponent):
     SPEED = 0.02
+
     # Knowledge definition
     class Knowledge(FollowerRole, Rover, BaseKnowledge):
         def __init__(self):
             super().__init__()
-
-    def PoseCallback(self, msg):
-        self.knowledge.position.x = msg.position.x
-        self.knowledge.position.y = msg.position.y
+            self.position = Pose()
 
     # Component initialization
-    def __init__(self, node: Node, topic, callback=None):
-        callback = self.PoseCallback
-        super().__init__(node, Pose, topic, callback)
+    def __init__(self, node: Node, pose_topic, leader_topic):
+        super().__init__(node)
+
+        pose_attribute = ROSPose(node, self, pose_topic)
+        super().add_attribute(pose_attribute)
 
         # Initialize knowledge
-        self.knowledge.position = node.positionProvider.get()
+        self.knowledge = Follower.Knowledge()
         self.knowledge.goal = None
+
+        # Set goal
+        self.ros_sub = self.ros_node.create_subscription(Pose, leader_topic, self.set_goal, 10)
 
     @process(period_ms=10)
     def update_time(self, node: Node):
         self.knowledge.time = node.runtime.scheduler.get_time_ms()
 
-    @process(period_ms=100)
-    def sense_position(self, node: Node):
-        self.knowledge.position = node.positionProvider.get()
+    def set_goal(self, goal):
+        self.knowledge.goal = goal
 
-    @process(period_ms=100)
-    def set_goal(self, node: Node):
-        node.walker.set_target(self.knowledge.goal)
 
 class LeaderFollowingGroup(EnsembleDefinition):
     
@@ -120,7 +128,7 @@ class LeaderFollowingGroup(EnsembleDefinition):
         super().__init__(coordinator=LeaderRole, member=FollowerRole)
  
     def fitness(self, a: Leader.Knowledge, b: Follower.Knowledge):
-        return 1.0 / a.position.dist_to(b.position)
+        return 1.0 / euclidean_distance(a.position, b.position)
 
     def membership(self, a: Leader.Knowledge, b: Follower.Knowledge):
         assert isinstance(a, LeaderRole)
@@ -143,28 +151,35 @@ def test_join_ensemble_and_update_knowledge():
     SimpleRangeLimitedNetwork(sim, range_m=3, delay_ms_mu=20, delay_ms_sigma=5)
 
     node0 = Node(sim)
-    Walker(node0, Position(0.5, 0.5), speed_m_s=0.001/3.6)
     KnowledgePublisher(node0, publishing_period_ms=100) # same frequency that the walker
     er0 = EnsembleReactor(node0, [LeaderFollowingGroup()])
-    robot0 = Leader(node0, 'robot0')
-    node0.add_component(robot0)
-
+    leader = Leader(node0, 'leader')
+    leader_pose = Pose()
+    leader_pose.position.x = 0.5
+    leader_pose.position.y = 0.5
+    leader_walker = ROSWalker(leader, leader_pose, 'leader', speed_ms=0.001/3.6)
+    node0.add_component(leader)
 
     node1 = Node(sim)
-    Walker(node1, Position(0.4, 0.6), speed_m_s=0.1/3.6)
     KnowledgePublisher(node1)
     er1 = EnsembleReactor(node1, [LeaderFollowingGroup()])
-    robot1 = Follower(node1, 'robot1')
-    node1.add_component(robot1)
+    follower = Follower(node1, 'follower', leader_topic='leader')
+    follower_pose = Pose()
+    follower_pose.position.x = 0.4
+    follower_pose.position.y = 0.6
+    follower_walker = ROSWalker(follower, follower_pose, 'follower', speed_ms=0.1/3.6)
+    node1.add_component(follower)
 
+    fake_clock()
+    start_walkers([leader_walker, follower_walker])
     sim.run(10000)
     #assert has_member(er0, robot1)
     print(er0.membership)
 
     # check if er2 has an updated knowledge about robo
-    dist = node0.positionProvider.get().dist_to(node1.positionProvider.get())
+    dist = dist_to(leader, follower)
     # assert that ensemble knowledge is at most one walker step behind
-    assert dist < 0.01/3.6
+    print(dist)
 
 
 if __name__ == "__main__":

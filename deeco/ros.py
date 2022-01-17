@@ -7,11 +7,11 @@ import threading
 
 
 class ROSComponent(Component):
-    def __init__(self, node, name):
+    def __init__(self, node):
         super().__init__(node)
         self.node.runtime.add_ros_component(self)
         self.ros_attributes = {}
-        self.ros_node = rclpy.create_node(f"ensemble_{name}")
+        self.ros_node = rclpy.create_node(f"ensemble_{self.uuid}")
 
     def add_attribute(self, attribute):
         key = attribute.topic

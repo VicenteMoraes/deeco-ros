@@ -10,7 +10,7 @@ from clock import fake_clock
 rclpy.init()
 sim = ROSSim()
 node = Node(sim)
-robot = ROSComponent(node, 'robot')
+robot = ROSComponent(node)
 str_attribute = ROSString(node, robot, 'topicname')
 robot.add_attribute(str_attribute)
 node.add_component(robot)

@@ -37,10 +37,10 @@ class ROSPose(ROSAttribute):
         super().__init__(node, ros_component, ros_type, topic, callback=self.pose_callback)
 
     def pose_callback(self, msg):
-        self.ros_component.knowledge.position.x = x
-        self.ros_component.knowledge.position.y = y
-        self.ros_component.knowledge.position.z = z
-        self.ros_component.knowledge.orientation.x = x
-        self.ros_component.knowledge.orientation.y = x
-        self.ros_component.knowledge.orientation.z = z
-        self.ros_component.knowledge.orientation.w = w
+        self.ros_component.knowledge.position.position.x = msg.position.x
+        self.ros_component.knowledge.position.position.y = msg.position.y
+        self.ros_component.knowledge.position.position.z = msg.position.z
+        self.ros_component.knowledge.position.orientation.x = msg.orientation.x
+        self.ros_component.knowledge.position.orientation.y = msg.orientation.y
+        self.ros_component.knowledge.position.orientation.z = msg.orientation.z
+        self.ros_component.knowledge.position.orientation.w = msg.orientation.w
