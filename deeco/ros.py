@@ -34,7 +34,7 @@ class ROSScheduler(SimScheduler):
         return time_ms >= self.limit_ms
 
     def run(self, clock):
-        self.time_ms = int(clock.data / 1e3)
+        self.time_ms = clock.data
         if self.check_if_done(clock.data):
             rclpy.shutdown()
         elif not self.is_running:

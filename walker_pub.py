@@ -34,7 +34,6 @@ class ROSWalker:
             return
 
         if euclidean_distance(self.pose, self.target) <= step:
-            print('hi')
             self.pose = self.target
         else:
             vector = Pose()

@@ -7,7 +7,7 @@ from deeco.core import (
     BaseKnowledge,
     ComponentRole
 )
-from deeco.plugins.simplenetwork import SimpleNetwork, SimpleRangeLimitedNetwork
+from deeco.plugins.simplenetwork import SimpleNetwork
 from deeco.plugins.knowledgepublisher import KnowledgePublisher
 from deeco.mapping import SetValue
 from geometry_msgs.msg import Pose
@@ -19,11 +19,10 @@ from clock import fake_clock
 
 
 def euclidean_distance(nodeA, nodeB):
-    return ((nodeA.x - nodeB.x) ** 2 + (nodeA.y - nodeB.y) ** 2) ** 0.5
-
+    return ((nodeA.position.x - nodeB.position.x) ** 2 + (nodeA.position.y - nodeB.position.y) ** 2) ** 0.5
 
 def dist_to(componentA, componentB):
-    return euclidean_distance(componentA.knowledge.position.position, componentB.knowledge.position.position)
+    return euclidean_distance(componentA.knowledge.position, componentB.knowledge.position)
 
 class Group(ComponentRole):
     def __init__(self):
@@ -123,8 +122,10 @@ class LeaderFollowingGroup(EnsembleDefinition):
 
     def __init__(self):
         super().__init__(coordinator=LeaderRole, member=FollowerRole)
- 
+
     def fitness(self, a: Leader.Knowledge, b: Follower.Knowledge):
+        if b is None:
+            return 0
         return 1.0 / euclidean_distance(a.position, b.position)
 
     def membership(self, a: Leader.Knowledge, b: Follower.Knowledge):
@@ -141,11 +142,12 @@ class LeaderFollowingGroup(EnsembleDefinition):
 
 
 def test_join_ensemble_and_update_knowledge():
+    ros_frequency = 0.01
     rclpy.init()
     sim = ROSSim()
 
     # Add simple network device
-    SimpleRangeLimitedNetwork(sim, range_m=3, delay_ms_mu=20, delay_ms_sigma=5)
+    SimpleNetwork(sim)
 
     node0 = Node(sim)
     KnowledgePublisher(node0, publishing_period_ms=100) # same frequency that the walker
@@ -154,22 +156,21 @@ def test_join_ensemble_and_update_knowledge():
     leader_pose = Pose()
     leader_pose.position.x = 0.5
     leader_pose.position.y = 0.5
-    leader_walker = ROSWalker(leader, leader_pose, 'leader', speed_ms=0.05/3.6)
+    leader_walker = ROSWalker(leader, leader_pose, 'leader', speed_ms=0.05/3.6, frequency=ros_frequency)
     node0.add_component(leader)
 
     node1 = Node(sim)
-    KnowledgePublisher(node1)
-    er1 = EnsembleReactor(node1, [LeaderFollowingGroup()])
-    follower = Follower(node1, 'follower', leader_topic='leader')
+    KnowledgePublisher(node1, publishing_period_ms=100)
+    follower = Follower(node1, 'follower')
     follower_pose = Pose()
     follower_pose.position.x = 0.4
     follower_pose.position.y = 0.6
-    follower_walker = ROSWalker(follower, follower_pose, 'follower', speed_ms=0.1/3.6)
+    follower_walker = ROSWalker(follower, follower_pose, 'follower', speed_ms=0.1/3.6, frequency=ros_frequency)
     node1.add_component(follower)
 
-    fake_clock()
+    fake_clock(frequency=ros_frequency)
     start_walkers([leader_walker, follower_walker])
-    sim.run(30e3)
+    sim.run(10e3)
     #assert has_member(er0, robot1)
     print(er0.membership)
 

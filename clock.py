@@ -12,9 +12,8 @@ def fake_clock(frequency=1):
     def publish_clock():
         global i
         msg = Int64()
-        msg.data = i
+        msg.data = int(i)
         pub.publish(msg)
-        print(i)
         i += 1000 * frequency
 
     executor = rclpy.executors.MultiThreadedExecutor()

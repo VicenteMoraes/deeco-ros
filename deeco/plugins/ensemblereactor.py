@@ -265,7 +265,7 @@ class EnsembleReactor(NodePlugin):
     
         # Build new ensemble instance if possible
         for definition in self.definitions:
-            coordinator =  self.get_coordinator(definition)
+            coordinator = self.get_coordinator(definition)
             if coordinator is None:
                 continue
             instance = EnsembleInstance(definition, coordinator)
