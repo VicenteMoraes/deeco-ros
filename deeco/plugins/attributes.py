@@ -15,7 +15,9 @@ class ROSAttribute(Attribute):
         self.topic = topic
         if callback is None:
             callback = self.callback
-        self.sub = ros_component.ros_node.create_subscription(ros_type, topic, callback, 10)
+        self.sub = ros_component.get_ros_node().create_subscription(ros_type, topic, callback, 10)
+
+        self.ros_component.add_attribute(self)
 
     def callback(self, msg):
         self.ros_component.knowledge.data = msg.data

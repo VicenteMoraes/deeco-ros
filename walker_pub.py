@@ -1,6 +1,7 @@
 import rclpy
 import threading
 from geometry_msgs.msg import Pose
+from std_msgs.msg import Int64
 
 
 def euclidean_distance(nodeA, nodeB):

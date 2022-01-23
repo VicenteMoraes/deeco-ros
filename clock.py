@@ -5,12 +5,14 @@ import threading
 
 
 i = 0
-def fake_clock(frequency=1):
+def fake_clock(limit, frequency=1):
     node = rclpy.create_node('clock')
     pub = node.create_publisher(Int64, 'clock', 10)
 
     def publish_clock():
         global i
+        if i >= limit:
+            rclpy.shutdown()
         msg = Int64()
         msg.data = int(i)
         pub.publish(msg)

@@ -24,6 +24,7 @@ def euclidean_distance(nodeA, nodeB):
 def dist_to(componentA, componentB):
     return euclidean_distance(componentA.knowledge.position, componentB.knowledge.position)
 
+
 class Group(ComponentRole):
     def __init__(self):
         super().__init__()
@@ -61,8 +62,7 @@ class Leader(ROSComponent):
     def __init__(self, node: Node, pose_topic="pose"):
         super().__init__(node)
 
-        pose_attribute = ROSPose(node, self, pose_topic)
-        super().add_attribute(pose_attribute)
+        self.pose_attribute = ROSPose(node, self, pose_topic)
 
         # Initialize knowledge
         self.knowledge = Leader.Knowledge()
@@ -96,8 +96,7 @@ class Follower(ROSComponent):
     def __init__(self, node: Node, pose_topic):
         super().__init__(node)
 
-        pose_attribute = ROSPose(node, self, pose_topic)
-        super().add_attribute(pose_attribute)
+        self.pose_attribute = ROSPose(node, self, pose_topic)
 
         # Initialize knowledge
         self.knowledge = Follower.Knowledge()
@@ -142,6 +141,7 @@ class LeaderFollowingGroup(EnsembleDefinition):
 
 
 def test_join_ensemble_and_update_knowledge():
+    limit_ms = 1e3
     ros_frequency = 0.01
     rclpy.init()
     sim = ROSSim()
@@ -168,9 +168,9 @@ def test_join_ensemble_and_update_knowledge():
     follower_walker = ROSWalker(follower, follower_pose, 'follower', speed_ms=0.1/3.6, frequency=ros_frequency)
     node1.add_component(follower)
 
-    fake_clock(frequency=ros_frequency)
+    fake_clock(limit=limit_ms, frequency=ros_frequency)
     start_walkers([leader_walker, follower_walker])
-    sim.run(10e3)
+    sim.run(limit_ms)
     #assert has_member(er0, robot1)
     print(er0.membership)
 
