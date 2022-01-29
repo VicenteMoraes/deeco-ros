@@ -36,13 +36,11 @@ class ROSScheduler(SimScheduler):
 
     def run(self, clock):
         self.time_ms = clock.data
-        if self.check_if_done(clock.data):
+        if self.check_if_done(self.time_ms):
             rclpy.shutdown()
-        if self.current_event is None:
+        if self.events.queue[0].time_ms <= self.time_ms:
             self.current_event = self.events.get()
-        if self.current_event.time_ms <= self.time_ms:
             self.current_event.run(self.time_ms)
-            self.current_event = None
 
 
 class ROSSim(Sim):
