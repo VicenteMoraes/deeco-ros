@@ -99,13 +99,13 @@ class EnsembleInstance:
         coordinator = self.coordinator
 
         for _, member in self.__members.items():
-            coord, member_mappings =  self.definition.knowledge_exchange(coordinator.knowledge, member)
-            patches.append( (member.node_uuid, member.component_uuid, member_mappings))
+            coord, member_mappings = self.definition.knowledge_exchange(coordinator.knowledge, member)
+            patches.append((member.node_uuid, member.component_uuid, member_mappings))
         return patches
 
     def add_impact(self, knowledge):
         if not self.membership_of(knowledge): # cordinator and new one
-            return  float('-inf')
+            return float('-inf')
         else:
             new_fitness = self.fitness_of(knowledge)
             old_fitness = self.fitness()
@@ -210,7 +210,7 @@ class EnsembleReactor(NodePlugin):
 #		print("Reactor processing knowledge packet")
         # print(f'{self.node.id} recieved a package of type {knowledge_packet.knowledge.__class__}')
         if not hasattr(knowledge_packet.knowledge, 'assignment'):
-            return 
+            return
         
         if knowledge_packet.knowledge.assignment.node_id is self.node.id:
             # Already assigned to us, lets process demands
