@@ -1,26 +1,17 @@
-import rclpy
+from rclpy.node import Node as ROSNode
 from std_msgs.msg import Int64
-import time
-import threading
 
 
-i = 0
-def fake_clock(limit, frequency=1):
-    node = rclpy.create_node('clock')
-    pub = node.create_publisher(Int64, 'clock', 10)
+class FakeClock(ROSNode):
+    def __init__(self, frequency):
+        super(FakeClock, self).__init__('fake_clock')
+        self.pub = self.create_publisher(Int64, 'clock', 10)
+        self.timer = self.create_timer(frequency, self.publish_clock)
+        self.frequency = frequency
+        self.count = 0
 
-    def publish_clock():
-        global i
-        if i >= limit:
-            rclpy.shutdown()
+    def publish_clock(self):
         msg = Int64()
-        msg.data = int(i)
-        pub.publish(msg)
-        i += 1000 * frequency
-
-    executor = rclpy.executors.MultiThreadedExecutor()
-    timer = node.create_timer(frequency, publish_clock)
-    executor.add_node(node)
-    thread = threading.Thread(target=executor.spin, daemon=True)
-    thread.start()
-
+        msg.data = int(self.count)
+        self.pub.publish(msg)
+        self.count += 1000 * self.frequency

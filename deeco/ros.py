@@ -10,6 +10,7 @@ class ROSComponent(Component):
     def __init__(self, node):
         super().__init__(node)
         self.node.runtime.add_ros_component(self)
+        self.ros_node = rclpy.create_node(f"ensemble_{self.uuid}")
         self.ros_attributes = {}
 
     def add_attribute(self, attribute):
@@ -17,14 +18,16 @@ class ROSComponent(Component):
         self.ros_attributes[key] = attribute
 
     def get_ros_node(self):
-        return self.node.runtime.ros_node
+        return self.ros_node
 
 
 class ROSScheduler(SimScheduler):
     def __init__(self, runtime):
         super().__init__()
         self.runtime = runtime
-        self.ros_sub = self.runtime.ros_node.create_subscription(Int64, '/clock', self.run, 10)
+        self.runtime.add_ros_component(self)
+        self.ros_node = rclpy.create_node("deeco_scheduler")
+        self.ros_sub = self.ros_node.create_subscription(Int64, '/clock', self.run, 10)
         self.limit_ms = 0
         self.current_event = None
 
@@ -47,20 +50,34 @@ class ROSSim(Sim):
     def __init__(self):
         super().__init__()
         self.ros_components = []
-        self.ros_node = rclpy.create_node('deeco_sim')
         self.scheduler = ROSScheduler(self)
+        self.executor = rclpy.executors.SingleThreadedExecutor()
 
-    def add_ros_component(self, ros_component):
-        self.ros_components.append(ros_component)
+    def add_ros_component(self, *components):
+        for component in components:
+            self.ros_components.append(component)
 
-    def run(self, limit_ms):
-        self.scheduler.set_limit(limit_ms)
+    def run_plugins(self):
         for plugin in self.plugins:
             plugin.run(self.scheduler)
 
-        # Schedule nodes
+    def schedule_nodes(self):
         for node in self.nodes:
             node.run(self.scheduler)
 
-        rclpy.spin(self.ros_node)
+    def run_ros(self):
+        for component in self.ros_components:
+            try:
+                self.executor.add_node(component.ros_node)
+            except AttributeError:
+                self.executor.add_node(component)
+        self.executor.spin()
+
+    def run(self, limit_ms):
+        self.scheduler.set_limit(limit_ms)
+
+        self.run_plugins()
+        self.schedule_nodes()
+        self.run_ros()
+
         print('All done')

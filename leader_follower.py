@@ -12,10 +12,10 @@ from deeco.plugins.knowledgepublisher import KnowledgePublisher
 from deeco.mapping import SetValue
 from geometry_msgs.msg import Pose
 from deeco.plugins.attributes import ROSPose
-from walker_pub import ROSWalker, start_walkers
+from walker_pub import ROSWalker
 import rclpy
 from random import Random
-from clock import fake_clock
+from clock import FakeClock
 
 
 def euclidean_distance(nodeA, nodeB):
@@ -128,6 +128,7 @@ class LeaderFollowingGroup(EnsembleDefinition):
         return 1.0 / euclidean_distance(a.position, b.position)
 
     def membership(self, a: Leader.Knowledge, b: Follower.Knowledge):
+        print('huh')
         assert isinstance(a, LeaderRole)
         assert isinstance(b, FollowerRole)
         return True
@@ -141,7 +142,7 @@ class LeaderFollowingGroup(EnsembleDefinition):
 
 
 def test_join_ensemble_and_update_knowledge():
-    limit_ms = 1e3
+    limit_ms = float('inf')
     ros_frequency = 0.01
     rclpy.init()
     sim = ROSSim()
@@ -168,8 +169,8 @@ def test_join_ensemble_and_update_knowledge():
     follower_walker = ROSWalker(follower, follower_pose, 'follower', speed_ms=0.1/3.6, frequency=ros_frequency)
     node1.add_component(follower)
 
-    fake_clock(limit=limit_ms, frequency=ros_frequency)
-    start_walkers([leader_walker, follower_walker])
+    fake_clock = FakeClock(frequency=ros_frequency)
+    sim.add_ros_component(leader_walker, follower_walker, fake_clock)
     sim.run(limit_ms)
     #assert has_member(er0, robot1)
     print(er0.membership)
